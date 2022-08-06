@@ -1,0 +1,33 @@
+version: 0.0.1
+
+
+deployment:
+  enabled: true
+  appsettings:
+    logging: 
+      includeScopes: true
+      logLevel:
+        default: Information
+        system: Information
+        microsoft: Information 
+        
+  probes:
+    liveness:
+      enabled: false
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 10
+      successThreshold: 1
+      failureThreshold: 5
+      
+    readiness:
+      enabled: false
+      initialDelaySeconds: 0
+      periodSeconds: 5
+      timeoutSeconds: 10
+      successThreshold: 1
+      failureThreshold: 5
+      
+ingress:
+  sslTermination: true
+  host: amazing-game-3.pf2e.io

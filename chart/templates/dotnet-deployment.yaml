@@ -1,0 +1,87 @@
+{{ if .Values.deployment.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: the-farmer
+  labels: 
+    apps: {{ .Chart.Name }}
+    release: {{ .Chart.Name }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8080"
+spec:
+  selector: 
+    matchLabels:
+      app: {{ .Chart.Name }}
+  replicas: 1
+  template:
+    metadata:
+      name: {{ .Chart.Name }}
+      labels:
+        app: {{ .Chart.Name }}
+      annotations:
+        valuesChecksum: {{ .Values | toYaml | sha256sum | trunc 63 }}
+    spec:
+      imagePullSecrets:
+      - name: artifactory-credentials-the-farmer
+      containers:
+
+        #API
+      - name: {{ .Chart.Name }}
+        image: farmer.jfrog.io/core-docker-local/amazing-game-3:{{ .Values.version }}
+        imagePullPolicy: IfNotPresent
+
+        {{ if .Values.deployment.probes.liveness.enabled }}
+        livenessProbe:
+          initialDelaySeconds: {{ .Values.deployment.probes.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.deployment.probes.liveness.periodSeconds }}
+          timeoutSeconds: {{ .Values.deployment.probes.liveness.timeoutSeconds }}
+          successThreshold: {{ .Values.deployment.probes.liveness.successThreshold }}
+          failureThreshold: {{ .Values.deployment.probes.liveness.failureThreshold }}
+          httpGet: 
+            path: /probes/liveness
+            port: 80
+        {{- end }}
+        
+        {{ if .Values.deployment.probes.readiness.enabled }}
+        readinessProbe:
+          initialDelaySeconds: {{ .Values.deployment.probes.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.deployment.probes.readiness.periodSeconds }}
+          timeoutSeconds: {{ .Values.deployment.probes.readiness.timeoutSeconds }}
+          successThreshold: {{ .Values.deployment.probes.readiness.successThreshold }}
+          failureThreshold: {{ .Values.deployment.probes.readiness.failureThreshold }}
+          httpGet: 
+            path: /probes/readiness
+            port: 80
+        {{- end }}
+        
+        ports:
+        - containerPort: 8081
+          name: http
+          protocol: TCP
+          
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 0.25m
+          limits:
+            memory: 1024Mi
+            cpu: 1
+
+        volumeMounts:
+        {{- if .Values.deployment.appsettings }}
+        - name: appsettings-volume
+          mountPath: /app/appsettings.json
+          subPath: appsettings.json
+        {{- end }}
+      volumes: 
+      {{ if .Values.deployment.appsettings }}
+      - name: appsettings-volume
+        configMap:
+          name: {{ .Chart.Name }}-configmap-appsettings
+          defaultMode: 0777
+      {{ end }}
+{{ end }}    
+    
